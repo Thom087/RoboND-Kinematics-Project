@@ -17,6 +17,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from geometry_msgs.msg import Pose
 from mpmath import *
 from sympy import *
+import numpy as np
 
 
 def handle_calculate_IK(req):
@@ -51,11 +52,11 @@ def handle_calculate_IK(req):
 
             # Define Modified DH Transformation matrix
             s = {alpha0: 0, 	a0: 0,	d1: d01, 
-                 alpha1: -pi/2, a1: a12,d2: 0,	q2:q2-pi/2,
+                 alpha1: -np.pi/2, a1: a12,d2: 0,	q2:q2-np.pi/2,
                  alpha2: 0, 	a2: a23,d3: 0,	
-                 alpha3: -pi/2, a3: a34,d4: d34,
-                 alpha4: pi/2, 	a4: 0,	d5: 0,
-                 alpha5: -pi/2, a5: 0,	d6: 0,
+                 alpha3: -np.pi/2, a3: a34,d4: d34,
+                 alpha4: np.pi/2, 	a4: 0,	d5: 0,
+                 alpha5: -np.pi/2, a5: 0,	d6: 0,
                  alpha6: 0, 	a6: a23,d7: d67, q7:0}
 
 
@@ -115,12 +116,12 @@ def handle_calculate_IK(req):
 
             #correction matrix
             #rotate about -90 degrees about y-axis
-            R_y = Matrix([[ cos(-pi/2),        0, sin(-pi/2)],
+            R_y = Matrix([[ cos(-np.pi/2),        0, sin(-np.pi/2)],
                           [          0,	       1,	   0],
-                          [-sin(-pi/2),        0, cos(-pi/2)]])
+                          [-sin(-np.pi/2),        0, cos(-np.pi/2)]])
             #rotate about 180 degrees about z-axis
-            R_z = Matrix([[ cos(pi), 	-sin(pi),          0],
-                          [ sin(pi),     cos(pi),	   0],
+            R_z = Matrix([[ cos(np.pi), 	-sin(np.pi),          0],
+                          [ sin(np.pi),     cos(np.pi),	   0],
                           [       0, 	       0, 	   1]])
             R_corr = R_z*R_y
 
@@ -143,8 +144,8 @@ def handle_calculate_IK(req):
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                  req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-	    print("px: ", px, ", py: ", py, ", pz: ", pz)
-	    print("roll: ", roll, ", pitch: ", pitch, ", yaw: ", yaw)
+            print("px: ", px, ", py: ", py, ", pz: ", pz)
+            print("roll: ", roll, ", pitch: ", pitch, ", yaw: ", yaw)
 
             # Calculate joint angles using Geometric IK method
 
@@ -160,43 +161,44 @@ def handle_calculate_IK(req):
                             [ sin(yaw),  cos(yaw),         0],
                             [ 0,              0,           1]])
 
-            Rrpy = R_roll*R_pitch*R_yaw
+            #Rrpy -> R0_6
+	        Rrpy = R_roll*R_pitch*R_yaw
 
             # Calculate wrist positions
-            px_wc = px - d67*T_total[0,2]
-            py_wc = py - d67*T_total[1,2]
-            pz_wc = pz - d67*T_total[2,2]
-            p_wc  = [px_wc, py_wc, pz_wc]
+            px_wc = px - d67*Rrpy[0,0]
+            py_wc = py - d67*Rrpy[1,0]
+            pz_wc = pz - d67*Rrpy[2,0]
+            p_wc  = Matrix([[px_wc], [py_wc], [pz_wc]])
+	        print("p_wc: ", p_wc)
 
             # Calculate joint theta 1
-            theat1 = atan2(py_wc,px_wc)
-            theat1_big   = pi + atan2(py_wc,px_wc)
-
+            theta1 = atan2(py_wc,px_wc)
+            theta1_big   = np.pi + atan2(py_wc,px_wc)
+            print("theta1: ", theta1, ", theta1_big: ", theta1_big)
             # Calculate joint theta 3
-            L0_2 = [a12, 0, d01]
-            p_02 = [a12*cos(theat1), -a12*sin(theat1), d01]
+            p_02 = Matrix([[a12*cos(theta1)], [-a12*sin(theta1)], [d01]])
             p_25 = p_wc - p_02
             #								1.25     -0.054   1.5
             D = -(p_25[0]**2 + p_25[1]**2 - a23**2 -a34**2 - d34**2)/(2*a23*sqrt(a34**2 + d34**2))
             #theat3_small = atan2(D, sqrt(1-D**2)) #eventually opposite!
             #theat3_big   = atan2(D, -sqrt(1-D**2)) #eventually opposite!
-            theat3_small = atan2(sqrt(1-D**2),D)
-            theat3_big   = atan2(-sqrt(1-D**2), D)
+            theta3_small = atan2(sqrt(1-D**2),D)
+            theta3_big   = atan2(-sqrt(1-D**2), D)
             delta = atan2(0.054, 0.96)-atan2(0.054, 1.5)
-            theta3 = pi/2 - theat3_small - delta
-            theta3_big = pi/2 - theat3_big - delta	#check which one is wright!
+            theta3 = np.pi/2 - theta3_small - delta
+            theta3_big = np.pi/2 - theta3_big - delta	#check which one is wright!
+	        #print("theta3_small: ", theta3_small, ", theta3_big: ", theta3_big)
 
             # Calculate joint theta 2
-            beta = theta3_small - pi/2
+            beta = theta3_small - np.pi/2
             L3_5 = sqrt(1.5**2+0.054**2)
             L2_5 = 1.25
             delta2 = atan2(p_25[1], p_25[0])
             delta3 = atan2(cos(beta)*L3_5, (sin(beta)*L3_5+L2_5))
             theta2 = delta2 + delta3
-
+	        #print("theta2: ", theta2)
             # Calculate numerical R0_3_num
             R0_3_num = R0_3.evalf(subs={q1:theta1, q2:theta2, q3:theta3})
-            rospy.loginfo("R0_3_num", R0_3_num)
 
             # Calculate R_3_6
             # R3_6 = R0_3_num.transpose() * Rrpy 
@@ -229,7 +231,7 @@ def handle_calculate_IK(req):
 
             T0_G_num = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})
             print("Forward Kinematics T0_7_num")
-            print(T0_7_num)
+            print(T0_G_num)
 
         rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
         return CalculateIKResponse(joint_trajectory_list)
