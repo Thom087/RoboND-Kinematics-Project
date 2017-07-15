@@ -188,14 +188,15 @@ def handle_calculate_IK(req):
 	    gamma = atan2(sqrt(1-D**2),D)
 	    delta = atan2(0.054, 0.96)-atan2(0.054, 1.5)
 	    theta3 = -np.pi/2 + gamma - delta
+	    theta3 = -theta3 	#because z-axis is in the other direction..
 	    theta3_big = np.pi - theta3 	#check which one is wright
 	    #print("theta3_big: ", theta3_big, ", theta3_big_deg: ", theta3_big*rtd)
 
             # Calculate joint theta 2
-	    delta2=atan2(p_25[2],p_25[0])
+	    delta2=mpmath.atan2(p_25[2],p_25[0])
 	    E = (a23**2 +p_25[0]**2 + p_25[2]**2 - a34**2 - d34**2)/(2*a23*sqrt(p_25[0]**2 + p_25[2]**2))  
-	    delta3 = atan2(sqrt(1-E**2),E)
-	    theta2 = delta2 + delta3 - pi/2
+	    delta3 = mpmath.atan2(sqrt(1-E**2),E)
+	    theta2 = mpmath.pi/2 - (delta2 + delta3) 
 	    #print("theta2: ", theta2*rtd)
 
             # Calculate numerical R0_3_num
@@ -203,7 +204,8 @@ def handle_calculate_IK(req):
 
             # Calculate R_3_6
             # R3_6 = (R0_3_num**(-1)) * Rrpy 
-            R3_6 = R0_3_num.transpose() * Rrpy * R_corr
+            #R3_6 = R0_3_num.transpose() * Rrpy * R_corr
+	    R3_6 = R0_3_num.transpose() * Rrpy
 
             # Get Euler angles theta 4-6
             # Rotation about x -> theta 4
@@ -211,6 +213,7 @@ def handle_calculate_IK(req):
 
             # Rotation about z -> theta 5
             theta5 = atan2(R3_6[1,0],R3_6[0,0])
+	    #theta5 = -theta5 #coordinate system in opposite direction
 
             # Rotation about y -> theta 6
             theta6 = atan2(-R3_6[2,0], sqrt(R3_6[0,0]**2+R3_6[1,0]**2))
