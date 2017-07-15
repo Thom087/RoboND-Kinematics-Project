@@ -109,11 +109,10 @@ def handle_calculate_IK(req):
                            [sin(q7)*sin(alpha6),cos(q7)*sin(alpha6), cos(alpha6), cos(alpha6)*d7],
                            [		      0,		  0,	       0,	       1]])
 
-            #T0_G = T0_1 * T1_2 * T2_3 * T3_4 * T4_5 * T5_6 * T6_G
 
-	    T0_3 = T0_1 * T1_2 * T2_3
+            T0_3 = T0_1 * T1_2 * T2_3
 
-	    # Get rotation matrix R0_3
+            # Get rotation matrix R0_3
             R0_3 = T0_3[0:3, 0:3]
 
             #correction matrix
@@ -125,14 +124,8 @@ def handle_calculate_IK(req):
             R_z = Matrix([[ cos(np.pi), 	-sin(np.pi),          0],
                           [ sin(np.pi),     cos(np.pi),	   0],
                           [       0, 	       0, 	   1]])
-            R_corr = R_z*R_y
-
-	    #ta = Matrix([[0], [0], [0]])
-	    #th = Matrix([[0, 0, 0, 1]])
-
-	    #T_corr = (R_corr.row_join(ta)).col_join(th)
-
-            #T_total = T0_G * T_corr
+            
+	    R_corr = R_z*R_y
 
 
             # Extract end-effector position and orientation from request
@@ -165,58 +158,51 @@ def handle_calculate_IK(req):
                             [ 0,              0,           1]])
 
             #Rrpy -> R0_6
-	    Rrpy = R_roll*R_pitch*R_yaw
+	    Rrpy = R_yaw*R_pitch*R_roll*R_corr
 
             # Calculate wrist positions
-            px_wc = px - d67*Rrpy[0,0]
-            py_wc = py - d67*Rrpy[1,0]
-            pz_wc = pz - d67*Rrpy[2,0]
+            px_wc = px - d67*Rrpy[0,2]
+            py_wc = py - d67*Rrpy[1,2]
+            pz_wc = pz - d67*Rrpy[2,2]
             p_wc  = Matrix([[px_wc], [py_wc], [pz_wc]])
-	    print("p_wc: ", p_wc)   
+	       
 
             # Calculate joint theta 1
             theta1 = mpmath.atan2(py_wc,px_wc)
-	    theta1_big   = 2*pi-theta1
-	    #print("theta1_big: ", theta1_big, ", theta1_big_deg: ", theta1_big*rtd)
-
+	 
             # Calculate joint theta 3
             p_02 = Matrix([[a12*cos(theta1)], [a12*sin(theta1)], [d01]])
             p_25 = p_wc - p_02
             #								1.25     -0.054   1.5
             D = (a23**2 + a34**2 + d34**2 -p_25[0]**2 - p_25[2]**2)/(2*a23*sqrt(a34**2 + d34**2))
+	    
 	    #atan2(GK->y, AK->x)
-	    gamma = atan2(sqrt(1-D**2),D)
-	    delta = atan2(0.054, 0.96)-atan2(0.054, 1.5)
+	    gamma = mpmath.atan2(sqrt(1-D**2),D)
+	    delta = mpmath.atan2(0.054, 0.96)-atan2(0.054, 1.5)
 	    theta3 = -np.pi/2 + gamma - delta
-	    theta3 = -theta3 	#because z-axis is in the other direction..
-	    theta3_big = np.pi - theta3 	#check which one is wright
-	    #print("theta3_big: ", theta3_big, ", theta3_big_deg: ", theta3_big*rtd)
+	   
 
             # Calculate joint theta 2
 	    delta2=mpmath.atan2(p_25[2],p_25[0])
 	    E = (a23**2 +p_25[0]**2 + p_25[2]**2 - a34**2 - d34**2)/(2*a23*sqrt(p_25[0]**2 + p_25[2]**2))  
 	    delta3 = mpmath.atan2(sqrt(1-E**2),E)
-	    theta2 = mpmath.pi/2 - (delta2 + delta3) 
-	    #print("theta2: ", theta2*rtd)
+	    theta2 = delta2 + delta3
 
             # Calculate numerical R0_3_num
             R0_3_num = R0_3.evalf(subs={q1:theta1, q2:theta2, q3:theta3})
 
             # Calculate R_3_6
-            # R3_6 = (R0_3_num**(-1)) * Rrpy 
-            #R3_6 = R0_3_num.transpose() * Rrpy * R_corr
-	    R3_6 = R0_3_num.transpose() * Rrpy
+            R3_6 = R0_3_num.transpose() * Rrpy 
 
             # Get Euler angles theta 4-6
             # Rotation about x -> theta 4
-            theta4 = atan2(R3_6[2,1],R3_6[2,2])+pi/2
+            theta4 = mpmath.atan2(R3_6[2,1],R3_6[2,2])
 
             # Rotation about z -> theta 5
-            theta5 = atan2(R3_6[1,0],R3_6[0,0])
-	    #theta5 = -theta5 #coordinate system in opposite direction
+            theta5 = mpmath.atan2(R3_6[1,0],R3_6[0,0])
 
             # Rotation about y -> theta 6
-            theta6 = atan2(-R3_6[2,0], sqrt(R3_6[0,0]**2+R3_6[1,0]**2))
+            theta6 = mpmath.atan2(-R3_6[2,0], sqrt(R3_6[0,0]**2+R3_6[1,0]**2))
 
 	    print("theta1: ", theta1*rtd)
 	    print("theta2: ", theta2*rtd)
