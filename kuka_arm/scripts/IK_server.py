@@ -40,6 +40,9 @@ def handle_calculate_IK(req):
             q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8')
             alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
 
+	    # Conversion Factors
+	    rtd = 180./mpmath.pi # radians to degrees
+
 
             # Modified DH params
             d01 = 0.75	# meters
@@ -105,7 +108,6 @@ def handle_calculate_IK(req):
                            [sin(q7)*cos(alpha6),cos(q7)*cos(alpha6),-sin(alpha6),-sin(alpha6)*d7],
                            [sin(q7)*sin(alpha6),cos(q7)*sin(alpha6), cos(alpha6), cos(alpha6)*d7],
                            [		      0,		  0,	       0,	       1]])
-            T6_G = T6_G.subs(s)
 
             T0_G = T0_1 * T1_2 * T2_3 * T3_4 * T4_5 * T5_6 * T6_G
 
@@ -162,41 +164,42 @@ def handle_calculate_IK(req):
                             [ 0,              0,           1]])
 
             #Rrpy -> R0_6
-	        Rrpy = R_roll*R_pitch*R_yaw
+	    Rrpy = R_roll*R_pitch*R_yaw
 
             # Calculate wrist positions
             px_wc = px - d67*Rrpy[0,0]
             py_wc = py - d67*Rrpy[1,0]
             pz_wc = pz - d67*Rrpy[2,0]
             p_wc  = Matrix([[px_wc], [py_wc], [pz_wc]])
-	        print("p_wc: ", p_wc)
+	       
 
             # Calculate joint theta 1
-            theta1 = atan2(py_wc,px_wc)
-            theta1_big   = np.pi + atan2(py_wc,px_wc)
-            print("theta1: ", theta1, ", theta1_big: ", theta1_big)
+            theta1 = mpmath.atan2(py_wc,px_wc)
+	    theta1_big   = 2*mpmath.pi-theta1
+	    print("theta1: ", theta1, ", theta1_deg: ", theta1*rtd )
+	    print("theta1_big: ", theta1_big, ", theta1_big_deg: ", theta1_big*rtd)
+
             # Calculate joint theta 3
-            p_02 = Matrix([[a12*cos(theta1)], [-a12*sin(theta1)], [d01]])
+            p_02 = Matrix([[a12*cos(theta1)], [a12*sin(theta1)], [d01]])
             p_25 = p_wc - p_02
             #								1.25     -0.054   1.5
-            D = -(p_25[0]**2 + p_25[1]**2 - a23**2 -a34**2 - d34**2)/(2*a23*sqrt(a34**2 + d34**2))
-            #theat3_small = atan2(D, sqrt(1-D**2)) #eventually opposite!
-            #theat3_big   = atan2(D, -sqrt(1-D**2)) #eventually opposite!
-            theta3_small = atan2(sqrt(1-D**2),D)
-            theta3_big   = atan2(-sqrt(1-D**2), D)
-            delta = atan2(0.054, 0.96)-atan2(0.054, 1.5)
-            theta3 = np.pi/2 - theta3_small - delta
-            theta3_big = np.pi/2 - theta3_big - delta	#check which one is wright!
-	        #print("theta3_small: ", theta3_small, ", theta3_big: ", theta3_big)
+            D = (a23**2 + a34**2 + d34**2 -p_25[0]**2 - p_25[2]**2)/(2*a23*sqrt(a34**2 + d34**2))
+	    print("D: ", D)
+	    #atan2(GK->y, AK->x)
+	    gamma = atan2(sqrt(1-D**2),D)
+	    delta = atan2(0.054, 0.96)-atan2(0.054, 1.5)
+	    theta3 = -np.pi/2 + gamma - delta
+	    theta3_big = np.pi - theta3 	#check which one is wright
+	    print("theta3: ", theta3, ", theta3_deg: ", theta3*rtd )
+	    print("theta3_big: ", theta3_big, ", theta3_big_deg: ", theta3_big*rtd)
 
             # Calculate joint theta 2
-            beta = theta3_small - np.pi/2
-            L3_5 = sqrt(1.5**2+0.054**2)
-            L2_5 = 1.25
-            delta2 = atan2(p_25[1], p_25[0])
-            delta3 = atan2(cos(beta)*L3_5, (sin(beta)*L3_5+L2_5))
-            theta2 = delta2 + delta3
-	        #print("theta2: ", theta2)
+	    delta2=atan2(p_25[2],p_25[0])
+	    E = (a23**2 +p_25[0]**2 + p_25[2]**2 - a34**2 - d34**2)/(2*a23*sqrt(p_25[0]**2 + p_25[2]**2))  
+	    delta3 = atan2(sqrt(1-E**2),E)
+	    theta2 = delta2 + delta3
+	    print("theta2: ", theta2*rtd)
+
             # Calculate numerical R0_3_num
             R0_3_num = R0_3.evalf(subs={q1:theta1, q2:theta2, q3:theta3})
 
@@ -230,8 +233,6 @@ def handle_calculate_IK(req):
             print("roll", roll, "pitch", pitch, "yaw", yaw)
 
             T0_G_num = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})
-            print("Forward Kinematics T0_7_num")
-            print(T0_G_num)
 
         rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
         return CalculateIKResponse(joint_trajectory_list)
