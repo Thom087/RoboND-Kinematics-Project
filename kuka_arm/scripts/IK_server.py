@@ -112,6 +112,9 @@ def handle_calculate_IK(req):
 
             T0_3 = T0_1 * T1_2 * T2_3
 
+            # Get the homogenous transformation from base to the gripper
+            T0_G = T0_3*T3_4*T4_5*T5_6*T6_G
+
             # Get rotation matrix R0_3
             R0_3 = T0_3[0:3, 0:3]
 
