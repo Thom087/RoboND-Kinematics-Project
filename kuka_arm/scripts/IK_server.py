@@ -172,7 +172,9 @@ def handle_calculate_IK(req):
 	 
             # Calculate joint theta 3
             p_02 = Matrix([[a12*cos(theta1)], [a12*sin(theta1)], [d01]])
+	    print("p_02: ", p_02)
             p_25 = p_wc - p_02
+	    print("p_25: ", p_25)
             #								1.25     -0.054   1.5
             D = (a23**2 + a34**2 + d34**2 -p_25[0]**2 - p_25[2]**2)/(2*a23*sqrt(a34**2 + d34**2))
 	    
@@ -180,13 +182,17 @@ def handle_calculate_IK(req):
 	    gamma = mpmath.atan2(sqrt(1-D**2),D)
 	    delta = mpmath.atan2(0.054, 0.96)-atan2(0.054, 1.5)
 	    theta3 = -np.pi/2 + gamma - delta
-	   
+	    theta3 = - theta3
 
             # Calculate joint theta 2
 	    delta2=mpmath.atan2(p_25[2],p_25[0])
 	    E = (a23**2 +p_25[0]**2 + p_25[2]**2 - a34**2 - d34**2)/(2*a23*sqrt(p_25[0]**2 + p_25[2]**2))  
 	    delta3 = mpmath.atan2(sqrt(1-E**2),E)
-	    theta2 = delta2 + delta3
+	    if (delta2 + delta3)>pi:
+          	theta2 = -mpmath.pi + (delta2 + delta3)
+    		theta3 = -theta3
+	    else:
+    		theta2 = mpmath.pi/2 - (delta2 + delta3)
 
             # Calculate numerical R0_3_num
             R0_3_num = R0_3.evalf(subs={q1:theta1, q2:theta2, q3:theta3})
@@ -196,8 +202,11 @@ def handle_calculate_IK(req):
 
             # Get Euler angles theta 4-6
             # Rotation about x -> theta 4
-            theta4 = mpmath.atan2(R3_6[2,1],R3_6[2,2])
-
+            theta4 = -mpmath.atan2(R3_6[2,1],R3_6[2,2])
+            if theta4 > pi/2 :
+            	theta4 = theta4 - mpmath.pi/2
+	    if theta4 < -pi/2 :
+    		theta4 = theta4 + mpmath.pi/2
             # Rotation about z -> theta 5
             theta5 = mpmath.atan2(R3_6[1,0],R3_6[0,0])
 
