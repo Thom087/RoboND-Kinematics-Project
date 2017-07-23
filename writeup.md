@@ -40,11 +40,11 @@ You're reading it!
 #### 1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
 To run the forward_kinemtaics start roscore:
 ```sh
-~$ roscore
+$ roscore
 ```
 In a new terminal launch the forward kinematics demo:
 ```sh
-~$ roslaunch kuka_arm forward_kinematics.launch
+$ roslaunch kuka_arm forward_kinematics.launch
 ```
 
 ![alt text][image2]
@@ -53,14 +53,14 @@ In a new terminal launch the forward kinematics demo:
 
 DH-Parameter Table:
 
-$i$ | $\alpha_{i-1}$ | $a_{i-1}$ | $d_i$ | $\theta_i$
+i | alpha_i-1 | a_i-1 | d_i | theta_i
 --- | --- | --- | --- | ---
-T0_1 | 0 | 0 | 0.75 | $\theta_1$
-T1_2 | -90° | 0.35 | 0 | $\theta_2$-90°
-T2_3 | 0 | 1.25 | 0 | $\theta_3$
-T3_4 | -90° | -0.054 | 1.5 | $\theta_4$
-T4_5 | 90° | 0 | 0 | $\theta_5$
-T5_6 | -90° | 0 | 0 | $\theta_6$
+T0_1 | 0 | 0 | 0.75 | theta_1
+T1_2 | -90° | 0.35 | 0 | theta_2-90°
+T2_3 | 0 | 1.25 | 0 | theta_3
+T3_4 | -90° | -0.054 | 1.5 | theta_4
+T4_5 | 90° | 0 | 0 | theta_5
+T5_6 | -90° | 0 | 0 | theta_6
 T6_G | 0 | 0 | 0.303 | 0
 
     # Modified DH params
@@ -127,10 +127,10 @@ T6_G | 0 | 0 | 0.303 | 0
                    [sin(q7)*sin(alpha6),cos(q7)*sin(alpha6), cos(alpha6), cos(alpha6)*d7],
                    [		      0,		  0,	       0,	       1]])
 
-##### Generalized homogeneous transform between base_link and gripper_link:
+##### 2.1 Generalized homogeneous transform between base_link and gripper_link:
     T0_G = T0_1 * T1_2 * T2_3 * T3_4 * T4_5 * T5_6 * T6_G
 
-##### Generalized homogeneous transform between base_link and gripper_link using only end-effector(gripper) pose:
+##### 2.2 Generalized homogeneous transform between base_link and gripper_link using only end-effector(gripper) pose:
 First I had to calculate the correction matrix:
 
     #correction matrix
@@ -164,7 +164,7 @@ Then calculate the Roll / Pitch / Yaw matrixes:
     #Rrpy -> R0_G
     Rrpy = R_yaw*R_pitch*R_roll*R_corr
 
-##### Calculate the wrist position
+##### 2.3 Calculate the wrist position
     # Calculate wrist positions
     px_wc = px - d67*Rrpy[0,2]
     py_wc = py - d67*Rrpy[1,2]
@@ -174,30 +174,29 @@ Then calculate the Roll / Pitch / Yaw matrixes:
 
 #### 3. Decouple Inverse Kinematics problem into Inverse Position Kinematics and inverse Orientation Kinematics; doing so derive the equations to calculate all individual joint angles.
 
-##### Theta 1
+##### 3.1 Theta 1
 Its the projection of of p_wc to the xy-plane of world coordinate system.
 ![alt text][image3] 
 
-##### Get P2_5
-To calcuate $\theta_2$ and $\theta_3$ the distance from $O_2$ to $O_3$ needs to be known. Its derived as follows:
+##### 3.2 Get P2_5
+To calcuate theta_2 and \theta_3 the distance from O_2 to O_3 needs to be known. Its derived as follows:
 ![alt text][image7] 
 
-##### Theta 3
+##### 3.3 Theta 3
 The trick here is to know the cosinus law and the magnitude of the vector P2_5  
 ![alt text][image5]
 
-##### Theta 2
+##### 3.4 Theta 2
 The trick here is again to know the cosinus law and the magnitude of the vector P2_5  
 ![alt text][image4]
 
-##### Theta 4-6
+##### 3.5 Theta 4-6
 To determine the angles the rotation matrixes of wrist to Gripper have to be taken into account:
 The R3_6 was calculated with the homogeneous transformations where the angles $\theta_4$ to $\theta_6$ are not known:
     R3_6 = (T3_4*T4_5*T5_6)[0:3, 0:3]
-$$
-R^3_6 = \begin{pmatrix} -sin(\theta_4) \cdot sin(\theta_6) + cos(\theta_4) \cdot cos(\theta_5) \cdot cos(\theta_6) & -sin(\theta_4) \cdot cos(\theta_6) - sin(\theta_6) \cdot cos(\theta_4) \cdot cos(\theta_5) & -sin(\theta_5) \cdot cos(\theta_4) \\ sin(\theta_5) \cdot cos(\theta_6) & -sin(\theta_5) \cdot sin(\theta_6) & cos(\theta_5) \\
-                       -sin(\theta_4) \cdot cos(\theta_5) \cdot cos(\theta_6) - sin(\theta_6) \cdot cos(\theta_4) & sin(\theta_4) \cdot sin(\theta_6) \cdot cos(\theta_5) - cos(\theta_4) \cdot cos(\theta_6) & sin(\theta_4) \cdot sin(\theta_5) \end{pmatrix} = \begin{pmatrix} r_{11} & r_{12} & r_{13} \\ r_{21} & r_{22} & r_{23} \\ r_{31} & r_{32} & r_{33} \end{pmatrix}
-$$
+    R3_6 = Matrix([[ -sin(q4)*sin(q6) + cos(q4)*cos(q5)*cos(q6), -sin(q4)*cos(q6) - sin(q6)*cos(q4)*cos(q5), -sin(q5)*cos(q4)], 
+                   [                            sin(q5)*cos(q6),                 -sin(q5)*sin(q6),                    cos(q5)], 
+                   [ -sin(q4)*cos(q5)*cos(q6) - sin(q6)*cos(q4),  sin(q4)*sin(q6)*cos(q5) - cos(q4)*cos(q6), sin(q4)*sin(q5)]])
 Whereas the R3_6 calculated with the end effector position is like follows:
     R3_6 = R0_3.transpose() * Rrpy
 
@@ -205,8 +204,6 @@ With a some trigonometrical laws and math the thetas are obtained:
 ![alt text][image6] 
 
 ### Project Implementation
-
-#### 1. Fill in the `IK_server.py` file with properly commented python code for calculating Inverse Kinematics based on previously performed Kinematic Analysis. Your code must guide the robot to successfully complete 8/10 pick and place cycles. Briefly discuss the code you implemented and your results. 
 
 The solution is described on top, the programming was not very special no special technics needed. 
 
@@ -219,3 +216,4 @@ The kuka robot can sucessfully pick up all pieces and drop them in the bin.
 Sometimes the motion path generated was kind of weird. 
 ![alt text][image8]
 It took very long to move from A to B. Overall the project was a lot of effort and sometimes not at all easy to implement, there are a lot of math and trigonometrical skills needed to sucessfully fullfill this task. There were some frustating moments.. what helped a lot was the IK_debug.py file which came for me a bit late.. therefore at the beginning it was kind of exhausting to test the code, the lecture material could be better.. 
+![alt text][image9]
