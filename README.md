@@ -2,7 +2,7 @@
 
 [//]: # (Image References)
 
-[image1]: ./misc_images/FW_Kinematics.png
+[image1]: ./misc_images/FW_Kinematics_1.png
 
 In this project a path trajectory is generated, where a 6DOF kuka robot needs to followed. The target is to pick the cans out of a rack and release it in a bin.
 
