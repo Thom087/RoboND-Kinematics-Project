@@ -1,5 +1,13 @@
 # Robotic arm - Pick & Place project
 
+[//]: # (Image References)
+
+[image1]: ./misc_images/FW_Kinematics.png
+
+In this project a path trajectory is generated, where a 6DOF kuka robot needs to followed. The target is to pick the cans out of a rack and release it in a bin.
+
+![alt text][image1]  
+
 Make sure you are using robo-nd VM or have Ubuntu+ROS installed locally.
 
 ### One time Gazebo setup step:
